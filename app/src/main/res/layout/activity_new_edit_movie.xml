@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_marginStart="20dp"
+    android:layout_marginLeft="30dp"
+    android:layout_marginEnd="20dp"
+    android:layout_marginRight="30dp"
+    tools:context=".App.NewEditMovieActivity">
+
+        <EditText
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/etxtAddMovie_subject"
+            android:lines="1"
+            android:maxLines="1"
+            android:textAlignment="center"
+            android:textSize="25sp"
+            android:inputType="textShortMessage"
+            android:hint="@string/movie_title"
+            android:layout_alignParentEnd="true"
+            android:textIsSelectable="true"
+ />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:verticalScrollbarPosition="defaultPosition"
+        android:textDirection="inherit"
+        android:id="@+id/scrollView"
+        android:layout_below="@+id/etxtAddMovie_subject"
+        android:fillViewport="false">
+
+    <EditText
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/etxtMoviePlot"
+        android:textSize="22sp"
+        android:hint="@string/movie_body"
+        android:inputType="textMultiLine|textAutoCorrect|textLongMessage|text"
+        android:scrollHorizontally="false"
+        />
+
+    </ScrollView>
+
+    <EditText
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/scrollView"
+        android:text="@string/movie_url"
+        android:textIsSelectable="true"
+        android:textSize="22sp"
+        android:foregroundGravity="top"
+        android:gravity="start"
+        android:inputType="textUri"
+        android:id="@+id/etxtMovieUrl_NewEditMovie"
+        android:lines="1"
+        android:fadeScrollbars="true"
+        android:hint="@string/movie_url"
+        android:textDirection="ltr"
+        />
+
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:layout_below="@+id/etxtMovieUrl_NewEditMovie"
+        android:id="@+id/coverImageLayout"
+        >
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="300dp"
+            android:id="@+id/coverImage_NewEditMovie"
+            android:foregroundGravity="top"
+            android:layout_alignParentEnd="true"
+            android:adjustViewBounds="true"
+            />
+        <ProgressBar
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:indeterminateBehavior="cycle"
+            android:id="@+id/progressBar_NewEditActivity"
+            android:layout_centerVertical="true"
+            android:visibility="invisible"
+            android:layout_alignParentEnd="true"
+            android:layout_marginEnd="50dp"
+            />
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/btn_Show"
+            android:textAlignment="center"
+            android:textStyle="bold"
+            android:textSize="25sp"
+            android:gravity="start"
+            android:id="@+id/btnShowCoverImage_NewEditMovie"
+            android:layout_alignParentStart="true" />
+
+    </RelativeLayout>
+
+<LinearLayout
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:id="@+id/buttons"
+    android:layout_centerHorizontal="true"
+    android:layout_marginBottom="@dimen/activity_vertical_margin"
+    android:layout_alignParentBottom="true"
+    >
+
+<Button
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="@string/btn_confirm"
+    android:id="@+id/btnSave_NewEditMovie"
+    android:textAlignment="inherit"
+    />
+<Button
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="@dimen/activity_horizontal_margin"
+    android:id="@+id/btnCancel_NewEditMovie"
+    android:text="@string/btn_cancel"
+    />
+</LinearLayout>
+
+</RelativeLayout>

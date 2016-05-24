@@ -48,7 +48,7 @@ public class WebSearchActivity extends MenuActivity implements View.OnClickListe
         setContentView(R.layout.activity_web_search);
 
         initializeViews();
-        initalizeListeners();
+        initializeListeners();
     }
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -70,11 +70,10 @@ public class WebSearchActivity extends MenuActivity implements View.OnClickListe
         // Connecting the listview of the movies list
         listViewWebTitles.setAdapter(listViewWebTitlesAdapter);
     }
-    private void initalizeListeners(){
+    private void initializeListeners(){
         // Connecting the Cancel button to the listener
         btnCancel.setOnClickListener(this);
         listViewWebTitles.setOnItemClickListener(this);
-       // etxtSearch.setOnClickListener(this); // this is for the object click itself
         etxtSearch.setOnQueryTextListener(this);
     }
 
@@ -92,7 +91,7 @@ public class WebSearchActivity extends MenuActivity implements View.OnClickListe
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        // Here we use a minifed movie object, with only title and imdbId
+        // Here we use a minified movie object, with only title and imdbId
         // Later, we will bring all the movie details from the web
         selectedMovie = listViewWebTitlesAdapter.getItem(position);
            //TODO: fetch all the movie details in AsyncTask, based on the IMDBid
@@ -100,7 +99,7 @@ public class WebSearchActivity extends MenuActivity implements View.OnClickListe
            taskGetMovieInfo.execute(selectedMovie.getImdbId());
     }
 
-    @Override
+
     public boolean onQueryTextSubmit(String query) {
         if(!query.isEmpty()){
             String searchString = query.trim().replace(" ","%20");
@@ -112,12 +111,18 @@ public class WebSearchActivity extends MenuActivity implements View.OnClickListe
         }
     }
 
+    @Override
+    public boolean onQueryTextChange(String newText) {
+        // This method runs after every text change,
+        return false;
+    }
+
 
     public class GetMovieTitlesFromWeb extends AsyncTask<String,Integer,ArrayList<Movie>>{
 
         @Override
         protected ArrayList<Movie> doInBackground(String... params) {
-            ArrayList<Movie> movieTitlesArray = new ArrayList<>();
+            ArrayList<Movie> movieTitlesArray = new ArrayList<Movie>();
             String inputLine;   // Single line from the streamBuffer
             String resultResponse = "";  // The complete text of the response
 
@@ -134,7 +139,6 @@ public class WebSearchActivity extends MenuActivity implements View.OnClickListe
                                 return null;
                                 //TODO: Verify we check onPostExecute for null object
                             }
-                            publishProgress(pageNumber);
                             BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                             while ((inputLine = reader.readLine()) != null) {
                                 resultResponse += inputLine;
@@ -179,17 +183,20 @@ public class WebSearchActivity extends MenuActivity implements View.OnClickListe
 
         @Override
         protected void onPostExecute(ArrayList<Movie> moviesArray) {
+            Toast.makeText(WebSearchActivity.this, "Finished searching.  found " + moviesArray.size() + " items", Toast.LENGTH_SHORT).show();
             super.onPostExecute(moviesArray);
             if(!moviesArray.isEmpty()){
                 listViewWebTitlesAdapter.clear();
                 listViewWebTitlesAdapter.addAll(moviesArray);
                 }
         }
+
+        @Override
+        protected void onProgressUpdate(Integer... values) {
+            super.onProgressUpdate(values);
+        }
     }
-    @Override
-    public boolean onQueryTextChange(String newText) {
-        return false;
-    }
+
     public class GetMovieInfoByImdb extends AsyncTask<String,Void,Movie>{
 
         @Override
