@@ -136,6 +136,7 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
             case R.id.btnSave_NewEditMovie:
                 // insert movie object into the DB
                 if(updateMovieObject()){
+                    setResult(MainActivity.MOVIE_ADDED_RETURNCODE);
                     finish();
                 } else {
                     Toast.makeText(NewEditMovieActivity.this, "Movie not updated in catalog", Toast.LENGTH_LONG).show();
@@ -213,13 +214,13 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
             }
     }
     private void getCoverImage(String url){
-        if((!url.isEmpty()) && (url.startsWith("http://")|| url.startsWith("https://"))){
+        if(!(url.isEmpty()) && (url.startsWith("http://")|| url.startsWith("https://"))){
             //String targetUrl = url.replace(" ","%20");
             Log.i("getCoverImage", "imageUrl: " + url);
             DownloadImageTask task = new DownloadImageTask();
             task.execute(url);
         } else {
-            Toast.makeText(this, getResources().getString(R.string.toast_message_invalid_url), Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this, getResources().getString(R.string.toast_message_invalid_url), Toast.LENGTH_SHORT).show();
         }
     }
     public void clearAllFields(){

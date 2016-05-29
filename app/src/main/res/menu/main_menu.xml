@@ -2,7 +2,7 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <group android:id="@+id/menu_main_category" android:menuCategory="system">
-        <item android:id="@+id/menu_exit" android:showAsAction="withText" android:title="@string/menu_option_exit" android:icon="@android:drawable/ic_menu_close_clear_cancel"/>
+        <item android:id="@+id/menu_exit" app:showAsAction="withText" android:title="@string/menu_option_exit" android:icon="@android:drawable/ic_menu_close_clear_cancel"/>
     </group>
     <!-- This group is not used at the moment -->
     <group android:id="@+id/menu_group_container" android:menuCategory= "container"
@@ -10,13 +10,13 @@
         <item android:id="@+id/menu_share"
             android:title="@string/menu_share"
             android:icon="@android:drawable/ic_menu_share"
-            android:showAsAction="ifRoom"
+            app:showAsAction="ifRoom"
             android:actionProviderClass="android.widget.ShareActionProvider" />
 
         <item android:id="@+id/search"
             android:title="@string/app_bar_search"
             android:icon="@android:drawable/ic_menu_search"
-            android:showAsAction="collapseActionView|ifRoom"
+            app:showAsAction="collapseActionView|ifRoom"
             android:actionViewClass="android.widget.SearchView" />
 
     </group>

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.uaharoni.mymoviescatalog">
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
         android:allowBackup="true"
@@ -16,8 +17,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".App.MenuActivity" />
-        <activity android:name=".App.WebSearchActivity" android:parentActivityName=".App.MainActivity" />
+        <activity android:name=".App.WebSearchActivity" android:parentActivityName=".App.MainActivity" android:windowSoftInputMode="adjustNothing" />
         <activity android:name=".App.NewEditMovieActivity" android:parentActivityName=".App.MainActivity"  android:windowSoftInputMode="adjustNothing"/>
     </application>
-    <uses-permission android:name="android.permission.INTERNET" />
 </manifest>

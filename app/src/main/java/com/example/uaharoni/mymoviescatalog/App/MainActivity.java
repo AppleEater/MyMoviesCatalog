@@ -33,6 +33,8 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
     public static final int MENU_OPTION_DELETE_CATALOG = 2;
     public final static int MENU_OPTION_SHARE = 3;
     public static final int APP_EXIT_RETURNCODE = 2;
+    public static final int MOVIE_ADDED_RETURNCODE = 3;
+
 
     private AlertDialog deleteCatalogDialog,addMovieDialog = null;
 
@@ -41,13 +43,17 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        initializeEntities();
-        initializeListeners();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        initializeEntities();
+        initializeListeners();
+
+
+
+
         GetItemsFromDB bgTask = new GetItemsFromDB();
         bgTask.execute();
     }
@@ -59,17 +65,19 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
                 this.finish();
             }
         }
+        progressBar.setVisibility(View.INVISIBLE);
         super.onActivityResult(requestCode, resultCode, data);
     }
 
     private void initializeEntities(){
+
         dbHelper = new MoviesDB(getApplicationContext());
         btnAddMovie = ((ImageButton) findViewById(R.id.btnAddMovie_Main));
         movieTitlesList = ((ListView)findViewById(R.id.listMoviesMain) );
         coverImage = (ImageView)findViewById(R.id.imageView_main_moviesList);
         progressBar = (ProgressBar)findViewById(R.id.progressBar_Main);
+        progressBar.setVisibility(View.INVISIBLE);
 
-        registerForContextMenu(movieTitlesList);
 
     }
     private void initializeListeners() {
@@ -79,7 +87,8 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
         // Connect the list item to a click listener
         movieTitlesList.setOnItemClickListener(this);
 
-        progressBar.setVisibility(ProgressBar.INVISIBLE);
+        registerForContextMenu(movieTitlesList);
+
     }
         @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -242,7 +251,7 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
             Cursor movieTitlesCursor = dbHelper.getAllMovieTitlesCursor();
             publishProgress(movieTitlesCursor.getCount());
             if(counterDummyData<2){
-            //   insertDummyData();
+              //insertDummyData();
                 counterDummyData++;
             }
             return movieTitlesCursor;
@@ -251,13 +260,13 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            progressBar.setVisibility(ProgressBar.VISIBLE);
+            progressBar.setVisibility(View.VISIBLE);
         }
 
         @Override
         protected void onPostExecute(Cursor returnCursor) {
             super.onPostExecute(returnCursor);
-            progressBar.setVisibility(ProgressBar.GONE);
+
             // Create the SimpleCursorAdapter
             String[] listOfFields = new String[]{MoviesDB.COL_TITLE};
             int[] textViewIds = new int[]{R.id.txtMovieListItem_movieTitle};
@@ -268,6 +277,9 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
                     ,listOfFields
                     ,textViewIds
                     ,0);
+
+            progressBar.setIndeterminate(false);
+            progressBar.setVisibility(View.GONE);
 
             // Connecting the list to the adapter
             movieTitlesList.setAdapter(movieTitlesListCursorAdapter);

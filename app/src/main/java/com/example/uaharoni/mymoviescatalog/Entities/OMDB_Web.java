@@ -1,8 +1,5 @@
 package com.example.uaharoni.mymoviescatalog.Entities;
 
-/**
- * Created by udi on 18/05/2016.
- */
 public final class OMDB_Web {
     public final static String URL_TITLESEARCH_PARAM = "?s=";
     public final static String URL_INFOSEARCH_PARAM = "?i=";
@@ -16,14 +13,13 @@ public final class OMDB_Web {
     public final int MAX_ITEMS_IN_PAGE = 10;
     public final static String JSON_SEARCH_ARRAY = "Search";
     public final static String JSON_TITLE = "Title";
-    public final String JSON_YEAR = "Year";
+    public final static String JSON_YEAR = "Year";
     public final static  String JSON_IMDBID = "imdbID";
     public final static String JSON_POSTER = "Poster";
     public final static String JSON_PLOT = "Plot";
 
 
-
     public final  static String URL_PROTOCOL = "http://";
-    public final  static String URL_DOMAIN_OMDB = "www.omdbapi.com/";
+    public final  static String URL_HOST_OMDB = "omdbapi.com/";
 
 }
