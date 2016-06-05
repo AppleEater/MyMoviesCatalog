@@ -21,7 +21,6 @@
     <string name="movie_not_found">No movie was found!</string>
     <string name="movie_saved">Movie %s was saved</string>
     <string name="dialog_add_movie">Add Movie</string>
-    <string name="dialog_add_movie_message">How do you want to add the movie?</string>
     <string name="toast_message_noMovieName">Please enter movie title</string>
     <string name="toast_message_noPlot">Please insert movie plot</string>
     <string name="btn_update">Update</string>
@@ -39,11 +38,14 @@
     <string name="menu_context_option_item_share"><![CDATA[Share & Enjoy]]></string>
     <string name="menu_share">Share</string>
     <string name="menu_option_clear_all_fields">Clear all fields</string>
-    <string name="toast_message_Loading_Image">Loading image...</string>
+    <string name="toast_message_Loading_Image">Loading image&#8230;</string>
     <string name="toast_message_image_not_found">No image was found in this link!</string>
     <string name="dialog_header_delete_all_catalog">Delete movies catalog</string>
     <string name="dialog_message_delete_catalog_warning">Warning! This action will delete all the movies in your catalog. This action is ireversible. Are you sure you want to continue?</string>
     <string name="dialog_button_delete_complete_catalog">Delete complete catalog</string>
     <string name="dialog_button_delete_catalog_cancel">Cancel</string>
-    <string name="app_bar_search">search_movie</string>
+    <string name="app_bar_search">search movie</string>
+    <string name="dialog_add_movie_message">How do you want to add the movie?</string>
+    <string name="menu_option_generate_dummy_data">Generate dummy data</string>
+    <string name="menu_option_share_intent_text">Share movie through</string>
 </resources>

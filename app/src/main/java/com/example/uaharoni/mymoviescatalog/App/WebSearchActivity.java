@@ -2,11 +2,11 @@ package com.example.uaharoni.mymoviescatalog.App;
 
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Color;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -19,9 +19,11 @@ import android.widget.Toast;
 import com.example.uaharoni.mymoviescatalog.Entities.Movie;
 import com.example.uaharoni.mymoviescatalog.Entities.OMDB_Web;
 import com.example.uaharoni.mymoviescatalog.R;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -38,9 +40,8 @@ public class WebSearchActivity extends MenuActivity implements View.OnClickListe
     private Button btnCancel;
     private Movie selectedMovie;
     private ProgressBar pbGetTitle;
-    private ProgressBar pbSimple;
-    private GetMovieTitlesFromWeb getMovieTitlesFromWeb;
-
+    private GetFromWeb getTitles=null;
+    private ArrayList<Movie> lastTitlesList = new ArrayList<>();
 
     public static Intent createIntent(Context context) {
         return( new Intent(context, WebSearchActivity.class));
@@ -49,9 +50,13 @@ public class WebSearchActivity extends MenuActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_web_search);
-
         initializeViews();
         initializeListeners();
+        /*
+        Log.i("onCreate","Applying ThreadPolicy");
+        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+        StrictMode.setThreadPolicy(policy);
+*/
     }
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -68,28 +73,34 @@ public class WebSearchActivity extends MenuActivity implements View.OnClickListe
                     super.onActivityResult(requestCode, resultCode, data);
                     break;
             }
-
         }
-
     }
-    private void initializeViews(){
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        etxtSearch.clearFocus();
+    }
+
+    private void initializeViews() {
         etxtSearch = (SearchView) findViewById(R.id.searchView);
         btnCancel = (Button) findViewById(R.id.btnCancelAddFromWeb);
         listViewTitles = (ListView) findViewById(R.id.listView_WebSearch);
-        listViewTitlesAdapter = new ArrayAdapter<Movie>(WebSearchActivity.this,android.R.layout.simple_list_item_1,android.R.id.text1);
+        listViewTitlesAdapter = new ArrayAdapter<>(WebSearchActivity.this, android.R.layout.simple_list_item_1, android.R.id.text1);
         // Connecting the listView of the movies list adapter
         listViewTitles.setAdapter(listViewTitlesAdapter);
         pbGetTitle = ((ProgressBar) findViewById(R.id.pb_getTitles_WebSearch));
-        if(pbGetTitle != null){
-            pbGetTitle.setVisibility(View.INVISIBLE);
+        if (pbGetTitle != null) {
+            pbGetTitle.setVisibility(ProgressBar.INVISIBLE);
         }
-        pbSimple = (ProgressBar)findViewById(R.id.pbSimple_WebSearch);
-        if(pbSimple != null) {pbSimple.setVisibility(ProgressBar.INVISIBLE);}
+        etxtSearch.setIconified(false);
+
     }
     private void initializeListeners(){
         // Connecting the Cancel button to the listener
         btnCancel.setOnClickListener(this);
         listViewTitles.setOnItemClickListener(this);
+        etxtSearch.setSubmitButtonEnabled(true);
         etxtSearch.setOnQueryTextListener(this);
     }
 
@@ -97,7 +108,13 @@ public class WebSearchActivity extends MenuActivity implements View.OnClickListe
     public void onClick(View buttonClicked) {
         switch (buttonClicked.getId()){
             case R.id.btnCancelAddFromWeb:
-                finish();
+                if(getTitles != null  && !getTitles.isCancelled()){
+                    Log.d("onClick","Cancelling background task in status " + getTitles.getStatus());
+                    getTitles.cancel(true);
+                    pbGetTitle.setVisibility(ProgressBar.GONE);
+                } else {
+                    finish();
+                }
                 break;
             default:
                 // The search button is checked in the onQueryTextSubmit method
@@ -106,11 +123,12 @@ public class WebSearchActivity extends MenuActivity implements View.OnClickListe
     }
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        // Here we use a minimised movie object, with only title and imdbId
+        // Here we use a minimized movie object, with only title and imdbId
         // Later, we will bring all the movie details from the web
         selectedMovie = listViewTitlesAdapter.getItem(position);
-           GetMovieInfoByImdb taskGetMovieInfo = new GetMovieInfoByImdb();
-           taskGetMovieInfo.execute(selectedMovie.getImdbId());
+        GetFromWeb getMovieInfo = new GetFromWeb(OMDB_Web.SEARCH_INFO);
+        Log.d("onItemClick","About to run background search on " + selectedMovie.getImdbId());
+        getMovieInfo.execute(selectedMovie.getImdbId());
     }
     @Override
     public boolean onQueryTextSubmit(String query) {
@@ -118,11 +136,12 @@ public class WebSearchActivity extends MenuActivity implements View.OnClickListe
             Toast.makeText(WebSearchActivity.this, "Please type movie title to search!", Toast.LENGTH_LONG).show();
             return false;
         }
-            String searchString = query.trim().replace(" ","%20");
-            getMovieTitlesFromWeb = new GetMovieTitlesFromWeb();
-            getMovieTitlesFromWeb.execute(searchString);
-        Toast.makeText(WebSearchActivity.this, "Searching for " + searchString + " . Please wait...", Toast.LENGTH_LONG).show();
-            return true;
+        //Toast.makeText(WebSearchActivity.this, "Searching for " + query + " . Please wait...", Toast.LENGTH_LONG).show();
+        etxtSearch.clearFocus();
+        getTitles = new GetFromWeb(OMDB_Web.SEARCH_TITLE);
+        Log.d("onQueryTextSubmit","About to execute background search on " + query.trim());
+        getTitles.execute(query.trim());
+         return true;
     }
 
     @Override
@@ -130,223 +149,262 @@ public class WebSearchActivity extends MenuActivity implements View.OnClickListe
         // This method runs after every text change,
         return false;
     }
+public class GetFromWeb extends AsyncTask<String,Integer,ArrayList<Movie>>{
 
-    public class GetMovieInfoByImdb extends AsyncTask<String,Void,Movie>{
+    private final int searchType;
 
-        @Override
-        protected Movie doInBackground(String... params) {
-            String inputLine;   // Single line from the streamBuffer
-            String resultResponse = "";  // The complete text of the response
-            //Movie updatedMovie = params[0];
-            String movieImdb = params[0];
+    protected GetFromWeb(int searchType){
+        super();
+        this.searchType = searchType;
+    }
 
-            String urlDefaultPrefixURL = OMDB_Web.URL_PROTOCOL + OMDB_Web.URL_HOST_OMDB;
-            try {
-                URL url = new URL((urlDefaultPrefixURL + OMDB_Web.URL_INFOSEARCH_PARAM + movieImdb + OMDB_Web.URLPOSTFIX ));
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                if(!this.isCancelled()){
-                    if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                        return null;
-                    }
-                }
-
-                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                while ((inputLine = reader.readLine()) != null && !this.isCancelled()) {
-                    resultResponse += inputLine;
-                }
-                // convert the json response into a big JSON object
-                JSONObject movieJSONObject = new JSONObject(resultResponse);
-                String moviePlot = movieJSONObject.getString(OMDB_Web.JSON_PLOT);
-                selectedMovie.setPlot(moviePlot);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            return selectedMovie;
-        }
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            pbSimple.setBackgroundColor(Color.TRANSPARENT);
-            pbSimple.setVisibility(ProgressBar.VISIBLE);
-        }
-
-        @Override
-        protected void onPostExecute(Movie returnedMovie) {
-            super.onPostExecute(returnedMovie);
-            pbSimple.setVisibility(ProgressBar.GONE);
-
-            Intent newMovieActivity = new Intent(getApplicationContext(),NewEditMovieActivity.class);
-
-            newMovieActivity.putExtra("Movie",returnedMovie);
-            newMovieActivity.setAction(Intent.ACTION_INSERT);
-            startActivityForResult(newMovieActivity,Intent.FILL_IN_ACTION);
-            }
-        }
-
-    public class GetMovieTitlesFromWeb extends AsyncTask<String,Integer,ArrayList<Movie>> {
-
-        @Override
-        protected ArrayList<Movie> doInBackground(String... params) {
-            ArrayList<Movie> tmpArray = new ArrayList<Movie>();
-            String searchTitle = params[0];
-            int pageNumber = 0;
-            int totalResults = 0;
-            int countItems = 0;
-
-            String response = OMDB_Web.JSON_RESPONSE_TYPE_TRUE;
-            while (response.equalsIgnoreCase(OMDB_Web.JSON_RESPONSE_TYPE_TRUE)) {
-                try{
-                    pageNumber++;
-
-                    String myUrl = constructURL(searchTitle, pageNumber);
-                   HttpURLConnection urlConnection = getConnection(myUrl);
-
-                    JSONObject resultObject = getJsonFromConnection(urlConnection);
-                    if (resultObject==null){
-                        tmpArray=null;
-                    } else {
-                        response = resultObject.getString(OMDB_Web.JSON_RESPNOSE);
-                        if (response.equals(OMDB_Web.JSON_RESPONSE_TYPE_TRUE)) {
-                            if (totalResults == 0) {
-                                totalResults = resultObject.getInt(OMDB_Web.JSON_TOTALRESULTS);
-                            } else {
-                                publishProgress((int) (countItems / totalResults) * 100);
-                            }
-                            JSONArray json_movieTitles = resultObject.getJSONArray(OMDB_Web.JSON_SEARCH_ARRAY);
-                            for (int i = 0; i < json_movieTitles.length(); i++) {
-                                JSONObject movie = json_movieTitles.getJSONObject(i);
-                                Movie miniMovie = getMovieFromJSON(movie);
-                                assert tmpArray != null;
-                                tmpArray.add(miniMovie);
-                                countItems++;
-                            }
-                        }
-                    }
-
-                } catch (JSONException e) {
-                    Log.e("doInBackground:", "Error parsing JSON Array... " + e.getMessage());
-                }
-            }
-
-            return tmpArray;
-        }
-
-        private JSONObject getJsonFromConnection(HttpURLConnection connection){
-
-            if(connection == null){
-                Log.e("getJsonFromConnection:", "No connection was found ");
-                return null;
-            }
-            String inputLine;   // Single line from the streamBuffer
-            String resultResponse = "";  // The complete text of the response
-            JSONObject resultObject = null;
-            BufferedReader reader = null;
-
-            try {
-                reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                while ((inputLine = reader.readLine()) != null) {
-                    resultResponse += inputLine;
-                }
-                // convert the json response into a big JSON object
-                resultObject = new JSONObject(resultResponse);
-            } catch (IOException eIO) {
-                Log.e("getJsonFromConnection:", "Can't get JSON object... " + eIO.getMessage());
-            }
-          catch (JSONException eJSON) {
-              Log.e("getJsonFromConnection:", "Error Parsing JSON response.." + eJSON.getMessage());
-            }
-            return resultObject;
-        }
-        private HttpURLConnection getConnection(String urlString){
-            URL url = null;
-            HttpURLConnection connection = null;
-            try {
-                url = new URL(urlString);
-                connection = (HttpURLConnection) url.openConnection();
-                connection.setReadTimeout(2000);
-                connection.setConnectTimeout(5000);
-                int responseCode = connection.getResponseCode();
-
-            } catch (MalformedURLException eUrl) {
-                Log.e("getConnection:", "Bad URL format... " + eUrl.getMessage());
-            } catch (SecurityException en){
-                Log.e("getConnection:", "No permissions to connect: " + en.getMessage());
-            } catch (IOException e) {
-                Log.e("getConnection:", "Failed to create connection: " + e.getMessage());
-            }
-            return connection;
-        }
-
-        private Movie getMovieFromJSON(JSONObject jsonMovieObject){
-
-            String movieTitle = null;
-            String moviePoster = null;
-            String movieImdbId = null;
-            String movieYear = null;
-            try {
-                movieTitle = jsonMovieObject.getString(OMDB_Web.JSON_TITLE);
-                moviePoster = jsonMovieObject.getString(OMDB_Web.JSON_POSTER);
-                movieImdbId= jsonMovieObject.getString(OMDB_Web.JSON_IMDBID);
-                movieYear = jsonMovieObject.getString(OMDB_Web.JSON_YEAR);
-            } catch (JSONException eJSON) {
-                Log.e("getMovieFromJSON:", "Error Parsing JSON elements.." + eJSON.getMessage());
-            }
-            return(new Movie(movieTitle+" ("+movieYear+")",movieImdbId,(moviePoster=="N/A")?null:moviePoster));
-        }
-        private String constructURL(String searchTitle, int pageNumber) {
-            Uri.Builder builder = new Uri.Builder();
-            builder.scheme("http")
-                    .authority("www.omdbapi.com")
-                    .appendPath("")
-                    .appendQueryParameter("s",searchTitle)
-                    .appendQueryParameter("type","movie")
-                    .appendQueryParameter("r","json");
-            if(pageNumber !=0){
-                builder.appendQueryParameter("page", String.valueOf(pageNumber));
-            }
-            return builder.build().toString();
-        }
-
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
+    @Override
+    protected void onCancelled(ArrayList<Movie> movies) {
+        super.onCancelled(movies);
+        if(movies != null) {
             listViewTitlesAdapter.clear();
-            pbGetTitle.setMax(100);
-            pbGetTitle.setProgress(0);
-            pbGetTitle.setVisibility(View.VISIBLE);
-            pbGetTitle.incrementProgressBy(4);
-            pbGetTitle.bringToFront();
-            pbGetTitle.setBackgroundColor(Color.DKGRAY);
-            pbGetTitle.setDrawingCacheBackgroundColor(Color.MAGENTA);
-
-        }
-
-        @Override
-        protected void onPostExecute(ArrayList<Movie> resultArray) {
-            super.onPostExecute(resultArray);
-
-            if(resultArray != null) {
-               // Toast.makeText(WebSearchActivity.this, "Finished searching.  Found " + resultArray.size() + " items", Toast.LENGTH_LONG).show();
-                listViewTitlesAdapter.clear();
-                listViewTitlesAdapter.addAll(resultArray);
-            }
-            pbGetTitle.setVisibility(View.GONE);
-        }
-        @Override
-        protected void onProgressUpdate(Integer... values) {
-            super.onProgressUpdate(values);
-            pbGetTitle.setProgress(values[0]);
-        }
-
-        @Override
-        protected void onCancelled() {
-            super.onCancelled();
-            pbGetTitle.setVisibility(ProgressBar.GONE);
+            listViewTitlesAdapter.addAll(movies);
         }
     }
 
+    @Override
+    protected void onPreExecute() {
+        super.onPreExecute();
+        Log.d("onPreExecute","Setting the progressBar");
+        pbGetTitle.setProgress(0);
+        pbGetTitle.setVisibility(ProgressBar.VISIBLE);
+    }
+    @Override
+    protected void onPostExecute(ArrayList<Movie> movies) {
+        super.onPostExecute(movies);
+        Log.d("onPostExecute","Hiding the progressBar");
+        pbGetTitle.setVisibility(ProgressBar.GONE);
+        Log.d("onPostExecute","Checking the ArrayList based on searchType: " + searchType);
+        if(searchType==OMDB_Web.SEARCH_TITLE){
+            if(!movies.isEmpty()){
+                if(movies.size()>0){
+                    Log.d("onPostExecute","Refreshing the adapter");
+                    listViewTitlesAdapter.clear();
+                    listViewTitlesAdapter.addAll(movies);
+                    Log.d("onPostExecute","Saving the list in the lastTitlesList");
+                    lastTitlesList = movies;
+                    Log.d("onPostExecute","Sanity check for lastTitlesList. Items: " + lastTitlesList.size());
+                } else {
+                    Log.d("onPostExecute","ArrayList is empty");
+                    Toast toast = new Toast(WebSearchActivity.this);
+                    toast.setText(R.string.movie_not_found);
+                    toast.setDuration(Toast.LENGTH_LONG);
+                    toast.setMargin(50f,50f);
+                    toast.setGravity(Gravity.CENTER_VERTICAL,50,50);
+                    toast.show();
+                    return;
+                }
+            }
+        }
+        if(searchType==OMDB_Web.SEARCH_INFO){
+            Log.d("onPostExecute","Loading info of selectedMovie");
+            selectedMovie = movies.get(0);
+            Log.i("onPostExecute","Sending the movie object (" + selectedMovie.getTitle() + ") to intent for editing.");
+            Intent newMovieActivity = new Intent(getApplicationContext(),NewEditMovieActivity.class);
+            newMovieActivity.putExtra("Movie",selectedMovie);
+            newMovieActivity.setAction(Intent.ACTION_INSERT);
+            startActivityForResult(newMovieActivity,Intent.FILL_IN_ACTION);
+        }
+    }
+    @Override
+    protected void onProgressUpdate(Integer... values) {
+        super.onProgressUpdate(values);
+        // Log.d("onProgressUpdate","Updating progressBar with " + values[0]);
+        pbGetTitle.setProgress(values[0]);
+    }
+    @Override
+    protected ArrayList<Movie> doInBackground(String... params) {
+        return (getMoviesList(params[0]));
+    }
+    private ArrayList<Movie> getMoviesList(String searchTerm) {
+        ArrayList<Movie> arrMovieList;
 
+        switch(searchType) {
+            case OMDB_Web.SEARCH_TITLE:
+                Log.d("getMoviesList","Getting ArrayList of movies that match " + searchTerm);
+                arrMovieList = getTitlesList(searchTerm);
+                break;
+            case OMDB_Web.SEARCH_INFO:
+                Log.d("getMoviesList","Getting ArrayList of movies that have this IMDBid: " + searchTerm);
+                arrMovieList = getMovieInfoList(searchTerm);
+                break;
+            default:
+                Log.e("GetFromWeb", "Parameter unknown");
+                return null;
+        }
+        return arrMovieList;
+    }
+    private ArrayList<Movie> getTitlesList (String movieSearch) {
+        ArrayList<Movie> arrMovieList = new ArrayList<>();
+        URL url = null;
+
+        int pageNumber=0;
+        int totalResults = 0;
+        int countItems = 0;
+
+        String json_Response = OMDB_Web.JSON_RESPONSE_TYPE_TRUE;
+
+        try {
+            while (json_Response.equals(OMDB_Web.JSON_RESPONSE_TYPE_TRUE)) {
+                if (isCancelled()) {
+                    break;
+                }
+                pageNumber++;
+                //Log.d("getTitlesList", "Loading page number " + pageNumber);
+                url = new URL(buildUrl(movieSearch,pageNumber).toString());
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                JSONObject jsResponse = getJSON(connection);
+                json_Response = jsResponse.getString(OMDB_Web.JSON_RESPNOSE);
+                Log.i("getTitlesList","json_response = " + json_Response);
+                if(!(json_Response.equals(OMDB_Web.JSON_RESPONSE_TYPE_TRUE))){
+                    Log.d("getTitlesList","No more proper object. response = " + json_Response + ". Error:" + jsResponse.getString("Error"));
+                    continue;
+                }
+                if (totalResults == 0 && jsResponse.has(OMDB_Web.JSON_TOTALRESULTS)) {
+                    totalResults = jsResponse.getInt(OMDB_Web.JSON_TOTALRESULTS);
+                    Log.i("getTitlesList", "Found " + totalResults + " results.");
+                }
+                JSONArray json_movieTitles = jsResponse.getJSONArray(OMDB_Web.JSON_SEARCH_ARRAY);
+                Log.d("getTitlesList","SearchArray has " + json_movieTitles.length() + " items");
+                for (int i = 0; i < json_movieTitles.length(); i++) {
+                    JSONObject movie = json_movieTitles.getJSONObject(i);
+                    Movie miniMovie = getMovieFromJSON(movie);
+                    //Log.d("getTitlesList","Found movie " + miniMovie.getTitle());
+                    arrMovieList.add(miniMovie);
+                    //Log.d("getTitlesList","Added movie " + miniMovie.getTitle());
+                }
+                countItems+=json_movieTitles.length();
+                //Log.d("getTitlesList","publishing " + (countItems*100/totalResults));
+                publishProgress((countItems*100/totalResults));
+                Log.i("getTitlesList","So far " + countItems + " items of " + totalResults + ". ArrayList size: " + arrMovieList.size());
+            }
+            Log.d("getTitlesList","Finished scanning all " + totalResults + " results. response is " + json_Response);
+        } catch (MalformedURLException eurl) {
+            Log.e("getTitlesList","Malformed URL " + buildUrl(movieSearch,pageNumber).toString());
+        } catch (IOException ce) {
+            Log.e("getTitlesList","Connection failure  to " + url.toString() + " ." + ce.getMessage());
+        } catch (JSONException je) {
+            Log.e("getTitlesList","No access to JSON Object attributes. " + je.getMessage());
+        } catch (Exception e){
+            Log.e("getTitlesList","Error in while loop. " + e.getMessage());
+        }
+
+        Log.d("getTitlesList","List has " + arrMovieList.size() + " items");
+        return  arrMovieList;
+    }
+    private ArrayList<Movie> getMovieInfoList(String imdbid) {
+        ArrayList<Movie> arrMovieList = new ArrayList<>();
+        URL url = null;
+
+        try {
+            url = new URL(buildUrl(imdbid,0).toString());
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            JSONObject jsResponse = getJSON(connection);
+            if(!(jsResponse.getString(OMDB_Web.JSON_RESPNOSE).equals(OMDB_Web.JSON_RESPONSE_TYPE_TRUE))) {
+                Log.e("getMovieInfoList","No valid Movie  object obtained");
+                        return null;
+            }
+            Movie updatedMovie = getMovieFromJSON(jsResponse);
+            Log.i("getMovieInfoList","Got movie object " + updatedMovie.getTitle());
+            arrMovieList.add(updatedMovie);
+            Log.d("getMovieInfoList","arrMovieList has " + arrMovieList.size() + " items");
+        } catch (MalformedURLException eurl) {
+            Log.e("getMovieInfoList","Malformed URL " + buildUrl(imdbid,0).toString());
+        } catch (IOException e1) {
+            Log.e("getMovieInfoList","Connection failure  to " + url.toString());
+        } catch (JSONException je) {
+            Log.e("getMovieInfoList","No access to JSON Object attributes. " + je.getMessage());
+        }
+
+        return  arrMovieList;
+    }
+    private Movie getMovieFromJSON(JSONObject jsonMovieObject){
+        Movie returnMovie;
+        String movieTitle = null;
+        String moviePoster = null;
+        String movieImdbId = null;
+        String moviePlot = null;
+        int movieIMDBRating = 0;
+        String movieYear = null;
+        try {
+            movieTitle = jsonMovieObject.getString(OMDB_Web.JSON_TITLE);
+            moviePoster = jsonMovieObject.getString(OMDB_Web.JSON_POSTER);
+            movieImdbId= jsonMovieObject.getString(OMDB_Web.JSON_IMDBID);
+            movieYear = jsonMovieObject.getString(OMDB_Web.JSON_YEAR);
+            if(searchType==OMDB_Web.SEARCH_INFO){
+                moviePlot = jsonMovieObject.getString(OMDB_Web.JSON_PLOT);
+                movieIMDBRating = jsonMovieObject.getInt(OMDB_Web.JSON_RATING);
+
+            }
+        } catch (JSONException eJSON) {
+            Log.e("getMovieFromJSON:", "Error Parsing JSON elements.." + eJSON.getMessage());
+        }
+        if(searchType==OMDB_Web.SEARCH_TITLE) {
+            // We obtain a minified Movie object
+            returnMovie = new Movie(movieTitle + " (" + movieYear + ")",movieImdbId,moviePoster);
+        } else {
+            // We bring the complete Movie object
+            returnMovie = new Movie(movieTitle, moviePlot, movieImdbId, (moviePoster.equals("N/A")) ? null : moviePoster, 0, movieIMDBRating);
+        }
+        return  returnMovie;
+    }
+
+    private JSONObject getJSON (HttpURLConnection connection) {
+        JSONObject jsonResponse=null;
+        if (connection == null) {
+            Log.e("getJSON:", "No connection was found ");
+            return null;
+        }
+        String inputLine;
+        String resultResponse = "";
+        BufferedReader reader;
+        try {
+            Log.d("getJSON","Reading the response from the URL");
+            reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            while ((inputLine = reader.readLine()) != null && !this.isCancelled()) {
+                resultResponse += inputLine;
+            }
+            //Log.d("getJSON","resultResponse is:  " + resultResponse);
+            jsonResponse = new JSONObject(resultResponse);
+            // Log.d("getJSON","Obtained JSON object: " + jsonResponse.toString());
+        } catch (IOException e) {
+            Log.e("getJSON", "Error reading from BufferReader. " + e.getMessage());
+        } catch (JSONException je) {
+            Log.e("getJSON", "Error converting to JSON object. " + je.getMessage());
+        }
+        return jsonResponse;
+    }
+
+
+    private Uri buildUrl(String term,int pageNumber){
+        Uri.Builder urlBuilder = new Uri.Builder().scheme("http")
+                .authority(OMDB_Web.AUTHORITY)
+                .appendPath("");
+
+        switch (searchType){
+            case OMDB_Web.SEARCH_TITLE:
+                urlBuilder.appendQueryParameter("s",term)
+                        .appendQueryParameter("type","movie");
+
+                if(pageNumber != 0){
+                    urlBuilder.appendQueryParameter("page", String.valueOf(pageNumber));
+                }
+                break;
+            case OMDB_Web.SEARCH_INFO:
+                urlBuilder.appendQueryParameter("i",term);
+                break;
+            default:
+                urlBuilder.appendQueryParameter("s",term);
+                break;
+        }
+        urlBuilder.appendQueryParameter("r","json");
+        Log.i("buildUrl","Loading URI:" + urlBuilder.build().toString());
+        return urlBuilder.build();
+    }
+    }
 }

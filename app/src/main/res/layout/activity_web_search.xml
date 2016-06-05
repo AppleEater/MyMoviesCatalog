@@ -14,9 +14,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/searchView"
-        android:queryHint="@string/title_activity_web_search"
+        android:queryHint="@string/app_bar_search"
         android:inputType="text"
-        android:textDirection="locale"
         android:textAlignment="textStart"
         android:divider="@android:drawable/divider_horizontal_dim_dark"
         android:showDividers="end"
@@ -33,6 +32,8 @@
         android:layout_marginBottom="50dp"
         android:divider="@android:color/holo_blue_light"
         android:dividerHeight="1dp"
+        android:scrollbars="vertical"
+        android:smoothScrollbar="true"
         android:choiceMode="singleChoice"
         android:textDirection="firstStrong"
         android:layoutDirection="locale"
@@ -50,25 +51,15 @@
 
         android:layout_marginTop="10dp" />
 
-    <ProgressBar
-        style="?android:attr/progressBarStyleLarge"
-        android:layout_width="wrap_content"
-        android:layout_height="20dp"
-        android:id="@+id/pbSimple_WebSearch"
-        android:foreground="@android:color/transparent"
-        android:indeterminate="false"
-        android:layout_marginStart="50dp"
-        android:layout_marginTop="150dp"
-        android:layout_centerHorizontal="true" />
 
     <ProgressBar
         style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="150dp"
-        android:layout_height="10dp"
-        android:visibility="invisible"
+        android:layout_width="250dp"
+        android:layout_height="30dp"
         android:foregroundGravity="center"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="200dp"
         android:id="@+id/pb_getTitles_WebSearch"
-        android:layout_alignBottom="@+id/pbSimple_WebSearch"
         android:layout_centerHorizontal="true" />
 
 

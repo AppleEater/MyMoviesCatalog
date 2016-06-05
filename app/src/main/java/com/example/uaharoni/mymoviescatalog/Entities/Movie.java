@@ -2,18 +2,16 @@ package com.example.uaharoni.mymoviescatalog.Entities;
 
 import java.io.Serializable;
 
-/**
- * Created by udi on 16/05/2016.
- */
 public class Movie implements Serializable{
     private long id;
     private String title;
     private String plot;
     private String imdbId;
     private String coverImageURL;
-    private int rating;
+    private double rating;
+    private boolean seen;
 
-    public Movie(String title, String plot, String imdbId, String coverImageURL,long id, int rating) {
+    public Movie(String title, String plot, String imdbId, String coverImageURL,long id, double rating) {
         this.title = title;
         this.plot = plot;
         this.imdbId = imdbId;
@@ -73,12 +71,20 @@ public class Movie implements Serializable{
     public String getCoverImageURL() {
         return coverImageURL;
     }
-    public int getRating() {
+    public double getRating() {
         return rating;
     }
 
-    public void setRating(int rating) {
+    public void setRating(double rating) {
         this.rating = rating;
+    }
+
+    public boolean getSeen() {
+        return seen;
+    }
+
+    public void setSeen(boolean seen) {
+        this.seen = seen;
     }
 }
 

@@ -30,15 +30,40 @@
         android:foregroundGravity="bottom"
         android:layout_alignParentBottom="true"
         android:clickable="true"
+        android:contentDescription="Click to add movie"
          />
 
     <ProgressBar
-        style="?android:attr/progressBarStyleSmall"
-        android:layout_width="30dp"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="250dp"
         android:layout_height="30dp"
         android:id="@+id/progressBar_Main"
-        android:layout_alignParentTop="true"
+        android:layout_centerVertical="true"
         android:layout_centerHorizontal="true"
-        android:layout_marginTop="181dp" />
+        android:secondaryProgressTintMode="screen"
+        android:secondaryProgressTint="@color/colorPrimary"
+        android:foreground="@android:color/holo_blue_light"
+        android:background="@android:color/transparent"
+        android:saveEnabled="true"
+        android:max="100" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="Please wait while loading dummy data..."
+        android:textSize="28sp"
+        android:textColor="@android:color/holo_green_dark"
+        android:textColorHighlight="@android:color/secondary_text_dark_nodisable"
+        android:textStyle="bold"
+        android:textAlignment="textStart"
+        android:visibility="invisible"
+        android:layout_centerHorizontal="true"
+        android:freezesText="true"
+        android:layout_marginEnd="@dimen/activity_horizontal_margin"
+        android:id="@+id/txt_please_wait_dummyData"
+        android:layout_above="@+id/progressBar_Main"
+        android:layout_marginBottom="34dp"
+        android:layout_alignStart="@+id/progressBar_Main" />
 
 </RelativeLayout>

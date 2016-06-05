@@ -3,9 +3,9 @@ package com.example.uaharoni.mymoviescatalog.App;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.v4.view.MenuItemCompat;
 import android.support.v7.widget.ShareActionProvider;
 import android.util.Log;
 import android.view.ContextMenu;
@@ -16,6 +16,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.RatingBar;
 import android.widget.Toast;
 
 import com.example.uaharoni.mymoviescatalog.Entities.Movie;
@@ -31,6 +32,7 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
     EditText movieTitleEditText, moviePlotEditText,movieCoverUrlEditText;
     ImageView coverImage;
     ProgressBar progressBar;
+    RatingBar ratingBar_movieRating;
     Bitmap coverImageBitmap;
     String movieImdbId;
     Button btnSaveUpdate, btnCancel, btnShowImage;
@@ -39,6 +41,7 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
     ShareActionProvider mShareActionProvider;
     Intent shareMovie;
     public final static int MENU_OPTION_CLEAR_FIELDS = 5;
+    public final static int MENU_OPTION_SHARE_MOVIE = 6;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,27 +53,10 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
     }
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Get the menu item.
-        MenuItem menuItem = menu.findItem(R.id.menu_share);
-        // Get the provider and hold onto it to set/change the share intent.
-         mShareActionProvider = (ShareActionProvider) MenuItemCompat.getActionProvider(menuItem);
-
-        shareMovie = new Intent(Intent.ACTION_SEND);
-        shareMovie.setType("text/plain");
-        //shareMovie.addCategory(Intent.CATEGORY_ALTERNATIVE);
-        shareMovie.addCategory(Intent.CATEGORY_SELECTED_ALTERNATIVE);
-        // Search and populate the menu with acceptable offering applications.
-        menu.addIntentOptions(
-                1
-                ,MainActivity.MENU_OPTION_SHARE
-                ,0
-                ,this.getComponentName()
-                ,null
-                ,shareMovie
-                ,0
-                ,null
-        );
         menu.add(2,MENU_OPTION_CLEAR_FIELDS,1,getResources().getString(R.string.menu_option_clear_all_fields));
+
+        menu.add(2,MENU_OPTION_SHARE_MOVIE,2,getString(R.string.menu_share)).setIcon(android.R.drawable.ic_menu_share).setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -80,6 +66,7 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
         movieCoverUrlEditText = (EditText)findViewById(R.id.etxtMovieUrl_NewEditMovie);
          coverImage = (ImageView)findViewById(R.id.coverImage_NewEditMovie);
         progressBar = (ProgressBar)findViewById(R.id.progressBar_NewEditActivity);
+        ratingBar_movieRating = (RatingBar)findViewById(R.id.rb_movieRating);
 
         btnCancel = (Button)findViewById(R.id.btnCancel_NewEditMovie);
         btnSaveUpdate = (Button)findViewById(R.id.btnSave_NewEditMovie);
@@ -115,9 +102,11 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
         moviePlotEditText.setText(movie.getPlot());
         movieCoverUrlEditText.setText(movie.getCoverImageURL());
         movieImdbId = editableMovie.getImdbId();
+        ratingBar_movieRating.setRating((float)movie.getRating());
 
         if(!movieCoverUrlEditText.getText().toString().isEmpty()){
             getCoverImage(movie.getCoverImageURL());
+            coverImage.setOnClickListener(this);
         }
     }
 
@@ -131,10 +120,12 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.btnCancel_NewEditMovie:
+                Log.d("onClick","Return to calling activity");
                 finish();
-                break;
+                return;
             case R.id.btnSave_NewEditMovie:
                 // insert movie object into the DB
+                Log.i("onClick","Saving and returning and to main activity");
                 if(updateMovieObject()){
                     setResult(MainActivity.MOVIE_ADDED_RETURNCODE);
                     finish();
@@ -150,16 +141,26 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
                 // Updating image from the coverUrl
                     getCoverImage(movieCoverUrlEditText.getText().toString());
                 break;
+            case R.id.coverImage_NewEditMovie:
+                Log.d("onClick", "Image was clicked");
+                showMovieTrailer();
             default:
                 break;
         }
     }
+    private void showMovieTrailer(){
+        String movieTitle = movieTitleEditText.getText().toString().trim();
+        String urlMovieTrailer = String.format("https://www.youtube.com/results?search_query=%s",(movieTitle.trim()+" official trailer").replace(" ","+"));
+        Intent openweb = new Intent(Intent.ACTION_VIEW, Uri.parse(urlMovieTrailer));
+        startActivity(openweb);
+    }
     private boolean updateMovieObject(){
-        boolean resultCode=true;
+        boolean resultCode;
         // Insert or update the movie object into the DB
         String movieTitle = movieTitleEditText.getText().toString();
         String moviePlot = moviePlotEditText.getText().toString();
         String movieCoverUrl = movieCoverUrlEditText.getText().toString().replace(" ","%20");
+        double movieRating_d = (double) ratingBar_movieRating.getRating();
 
         if(movieTitle.isEmpty()&& moviePlot.isEmpty()){
             resultCode=false;
@@ -167,12 +168,12 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
             editableMovie.setTitle(movieTitle);
             editableMovie.setPlot(moviePlot);
             editableMovie.setCoverImageURL(movieCoverUrl);
-            //  editableMovie.setRating(0); // TODO: Future feature for rating
+            editableMovie.setRating(movieRating_d);
 
-            if (intentAction == Intent.ACTION_EDIT) {
+            if (intentAction.equals(Intent.ACTION_EDIT)) {
                 dbHelper.updateMovie(editableMovie);
             }
-            if (intentAction == Intent.ACTION_INSERT) {
+            if (intentAction.equals(Intent.ACTION_INSERT)) {
                 dbHelper.insertMovie(editableMovie);
             }
             resultCode = true;
@@ -184,43 +185,47 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
     public boolean onOptionsItemSelected(MenuItem item) {
         ContextMenu.ContextMenuInfo menuInfo = item.getMenuInfo();
         switch (item.getItemId()){
-            case R.id.menu_share:
-                shareCurrentMovie(shareMovie);
-                break;
+
             case MENU_OPTION_CLEAR_FIELDS:
                 clearAllFields();
                 break;
+
+            case MENU_OPTION_SHARE_MOVIE:
+                Log.i("onOptionsItemSelected","Share the current movie info");
+                shareCurrentMovie();
+                break;
+
             default:
                 break;
         }
         return super.onOptionsItemSelected(item);
     }
-    private void shareCurrentMovie(Intent intent) {
-        String txtTShare = null;
-        //TODO: Check why mShareActionProvider is always null
-        if (mShareActionProvider != null) {
-            if(updateMovieObject()){
-                txtTShare = editableMovie.getTitle().trim();
-                if(!(editableMovie.getImdbId() ==null)){
-                    txtTShare+="\nhttp://www.imdb.com/title/" + editableMovie.getImdbId() +"/";
-                } else {
-                    txtTShare +="\nhttp://www.imdb.com/find?q=" + editableMovie.getTitle().trim().replace(" ","%20") + "&s=movie#tt";
-                }
-            }
-            intent.putExtra(Intent.EXTRA_TEXT, txtTShare);
-            intent.putExtra(Intent.EXTRA_TITLE, editableMovie.getTitle());
+    private void shareCurrentMovie() {
+        // Shares the current movie partial info  to an implicit intent
+        String movieTitle = movieTitleEditText.getText().toString().trim();
+        String movieImdbId = editableMovie.getImdbId();
+        String txtTShare = movieTitle;
 
-            mShareActionProvider.setShareIntent(intent);
-            }
-    }
-    private void getCoverImage(String url){
+        if (movieImdbId != null) {
+            txtTShare += "\nhttp://www.imdb.com/title/" + movieImdbId + "/";
+        } else {
+            txtTShare += "\nhttp://www.imdb.com/find?q=" + movieTitle.trim().replace(" ","%20") + "&s=movie#tt";
+        }
+        txtTShare += "\nInformation courtesy of IMDb (http://www.imdb.com). Used with permission."; // required by IMDB sharing permissions
+
+        Intent shareMovie = new Intent(Intent.ACTION_SEND);
+        shareMovie.setType("text/plain");
+        shareMovie.putExtra(Intent.EXTRA_SUBJECT, "My movie info");
+        shareMovie.putExtra(Intent.EXTRA_TEXT, txtTShare);
+        startActivity(Intent.createChooser(shareMovie, getString(R.string.menu_option_share_intent_text)));
+        }
+        private void getCoverImage(String url){
         if(!(url.isEmpty()) && (url.startsWith("http://")|| url.startsWith("https://"))){
-            //String targetUrl = url.replace(" ","%20");
             Log.i("getCoverImage", "imageUrl: " + url);
             DownloadImageTask task = new DownloadImageTask();
             task.execute(url);
         } else {
-            //Toast.makeText(this, getResources().getString(R.string.toast_message_invalid_url), Toast.LENGTH_SHORT).show();
+            Log.e("getCoverImage","Seems not a valid URL: " + url);
         }
     }
     public void clearAllFields(){
@@ -228,6 +233,7 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
         moviePlotEditText.setText("");
         movieCoverUrlEditText.setText("");
         coverImage.setImageBitmap(null);
+        ratingBar_movieRating.setRating(0);
     }
 
     @Override
@@ -249,7 +255,6 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
                 InputStream is = httpCon.getInputStream();
                 // convert bytes into Bitmap object (an image)
                  bitmap = BitmapFactory.decodeStream(is);
-                return bitmap;
             } catch (Exception e){
                 Log.e("DownloadImageTask", e.getMessage());
             }
@@ -260,7 +265,7 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
             if (result != null) {
                 coverImage.setImageBitmap(result);
             } else {
-                //Toast.makeText(NewEditMovieActivity.this, "Image not loaded...", Toast.LENGTH_LONG).show();
+                Log.w("onPostExecute", "No image was provided");
             }
         }
 

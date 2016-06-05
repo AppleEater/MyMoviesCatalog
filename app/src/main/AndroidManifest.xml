@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.example.uaharoni.mymoviescatalog">
+
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
@@ -11,13 +13,14 @@
         android:theme="@style/AppTheme">
         <activity android:name=".App.MainActivity">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
+                <action android:name="android.intent.action.MAIN"  />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         <activity android:name=".App.MenuActivity" />
-        <activity android:name=".App.WebSearchActivity" android:parentActivityName=".App.MainActivity" android:windowSoftInputMode="adjustNothing" />
-        <activity android:name=".App.NewEditMovieActivity" android:parentActivityName=".App.MainActivity"  android:windowSoftInputMode="adjustNothing"/>
+        <activity android:name=".App.WebSearchActivity" android:parentActivityName=".App.MainActivity" android:windowSoftInputMode="adjustNothing"
+            />
+        <activity android:name=".App.NewEditMovieActivity" android:parentActivityName=".App.MainActivity"  android:windowSoftInputMode="adjustNothing">
+        </activity>
     </application>
 </manifest>

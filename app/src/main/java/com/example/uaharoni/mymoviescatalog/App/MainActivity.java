@@ -2,11 +2,15 @@ package com.example.uaharoni.mymoviescatalog.App;
 
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.widget.SimpleCursorAdapter;
 import android.support.v7.app.AlertDialog;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -15,44 +19,55 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.uaharoni.mymoviescatalog.Entities.Movie;
+import com.example.uaharoni.mymoviescatalog.Entities.OMDB_Web;
 import com.example.uaharoni.mymoviescatalog.Helpers.MoviesDB;
 import com.example.uaharoni.mymoviescatalog.R;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 public class MainActivity extends MenuActivity implements View.OnClickListener, AdapterView.OnItemClickListener,DialogInterface.OnClickListener {
     private MoviesDB dbHelper;
     private ImageButton btnAddMovie;
     private ListView movieTitlesList;
+    private View listItem;
     private ImageView coverImage;
     private ProgressBar progressBar;
-    private static int counterDummyData=1;
+    private TextView txtNotifyDummy;
 
     public static SimpleCursorAdapter movieTitlesListCursorAdapter;
     public static final int MENU_OPTION_DELETE_CATALOG = 2;
     public final static int MENU_OPTION_SHARE = 3;
+    public static final int MENU_OPTION_GENERATE_DUMMY = 4;
     public static final int APP_EXIT_RETURNCODE = 2;
     public static final int MOVIE_ADDED_RETURNCODE = 3;
-
-
-    private AlertDialog deleteCatalogDialog,addMovieDialog = null;
+    private AlertDialog deleteCatalogDialog, addMovieDialog = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        initializeEntities();
+        initializeListeners();
+
+        progressBar.setVisibility(View.INVISIBLE);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        initializeEntities();
-        initializeListeners();
-
-
-
 
         GetItemsFromDB bgTask = new GetItemsFromDB();
         bgTask.execute();
@@ -60,8 +75,8 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if((requestCode==Intent.FILL_IN_ACTION)||(requestCode==Intent.FILL_IN_DATA)){
-            if(resultCode==APP_EXIT_RETURNCODE){
+        if ((requestCode == Intent.FILL_IN_ACTION) || (requestCode == Intent.FILL_IN_DATA)) {
+            if (resultCode == APP_EXIT_RETURNCODE) {
                 this.finish();
             }
         }
@@ -69,17 +84,17 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    private void initializeEntities(){
+    private void initializeEntities() {
 
         dbHelper = new MoviesDB(getApplicationContext());
         btnAddMovie = ((ImageButton) findViewById(R.id.btnAddMovie_Main));
-        movieTitlesList = ((ListView)findViewById(R.id.listMoviesMain) );
-        coverImage = (ImageView)findViewById(R.id.imageView_main_moviesList);
-        progressBar = (ProgressBar)findViewById(R.id.progressBar_Main);
-        progressBar.setVisibility(View.INVISIBLE);
-
-
+        movieTitlesList = ((ListView) findViewById(R.id.listMoviesMain));
+        coverImage = (ImageView) findViewById(R.id.imageView_main_moviesList);
+        progressBar = (ProgressBar) findViewById(R.id.progressBar_Main);
+        txtNotifyDummy = (TextView)findViewById(R.id.txt_please_wait_dummyData);
+        listItem = findViewById(R.id.list_item_layout);
     }
+
     private void initializeListeners() {
         // find  AddButton and connect to click event
         btnAddMovie.setOnClickListener(this);
@@ -88,15 +103,14 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
         movieTitlesList.setOnItemClickListener(this);
 
         registerForContextMenu(movieTitlesList);
-
     }
-        @Override
+
+    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // We use the super method defined in the Menu Activity for general activities.
-            //Here we specify specific activity-related options
-            menu.add(1,MENU_OPTION_DELETE_CATALOG,1,R.string.menu_delete_all_movies);
-            //TODO: Check why the removeItem doesn't work for menu option
-            menu.removeItem(MENU_OPTION_SHARE);
+        // We use the super method defined in menu_shared in the Menu Activity for general activities.
+        //Here we specify specific activity-related options
+        menu.add(1, MENU_OPTION_DELETE_CATALOG, 1, R.string.menu_delete_all_movies);
+        menu.add(1,MENU_OPTION_GENERATE_DUMMY,2,R.string.menu_option_generate_dummy_data);
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -107,9 +121,9 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
                 // dialogBox to confirm catalog deletion
                 AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(MainActivity.this);
                 dialogBuilder.setIcon(android.R.drawable.ic_delete);
-                dialogBuilder.setNegativeButton(R.string.dialog_button_delete_catalog_cancel,this);
+                dialogBuilder.setNegativeButton(R.string.dialog_button_delete_catalog_cancel, this);
 
-                dialogBuilder.setPositiveButton(R.string.dialog_button_delete_complete_catalog,this);
+                dialogBuilder.setPositiveButton(R.string.dialog_button_delete_complete_catalog, this);
                 dialogBuilder.setMessage(R.string.dialog_message_delete_catalog_warning);
                 dialogBuilder.setTitle(R.string.dialog_header_delete_all_catalog);
                 //dialogBuilder.show();   // this method does create and show
@@ -130,7 +144,10 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
                 deleteCatalogDialog.setCancelable(true);
                 deleteCatalogDialog.show();
                     */
-                 break;
+                break;
+            case MENU_OPTION_GENERATE_DUMMY:
+                insertDummyData();
+                break;
             default:
                 break;
         }
@@ -145,16 +162,17 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
         addMovieDialog.setIcon(android.R.drawable.ic_input_add);
         addMovieDialog.setTitle(getResources().getString(R.string.dialog_add_movie));
         addMovieDialog.setMessage(getResources().getString(R.string.dialog_add_movie_message));
-        addMovieDialog.setButton(AlertDialog.BUTTON_POSITIVE,getResources().getString(R.string.internet_add_movie), this);
-        addMovieDialog.setButton(AlertDialog.BUTTON_NEGATIVE,getResources().getString(R.string.manual_add_movie), this);
+        addMovieDialog.setButton(AlertDialog.BUTTON_POSITIVE, getResources().getString(R.string.internet_add_movie), this);
+        addMovieDialog.setButton(AlertDialog.BUTTON_NEGATIVE, getResources().getString(R.string.manual_add_movie), this);
         addMovieDialog.setCancelable(true);
         addMovieDialog.show();
     }
+
     @Override
     public void onClick(DialogInterface dialog, int whichButton) {
         // Called when clicking a button in the AlertDialog of AddMovie
-        if((deleteCatalogDialog != null) && deleteCatalogDialog.equals(dialog)) {
-            switch (whichButton){
+        if ((deleteCatalogDialog != null) && deleteCatalogDialog.equals(dialog)) {
+            switch (whichButton) {
                 case AlertDialog.BUTTON_POSITIVE:
                     dbHelper.deleteDB();
                     MainActivity.movieTitlesListCursorAdapter.changeCursor(dbHelper.getAllMovieTitlesCursor());
@@ -167,27 +185,26 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
                     break;
             }
         }
-        if(addMovieDialog != null){
-            if(dialog.equals(addMovieDialog)){
-                Intent addMovieActivity = null;
-                switch (whichButton){
+        if (addMovieDialog != null) {
+            if (dialog.equals(addMovieDialog)) {
+                Intent addMovieActivity;
+                switch (whichButton) {
                     case AlertDialog.BUTTON_POSITIVE:
                         //Open the WebSearchActivity
-                        addMovieActivity = new Intent(this,WebSearchActivity.class);
-                        startActivityForResult(addMovieActivity,Intent.FILL_IN_DATA);
+                        addMovieActivity = new Intent(this, WebSearchActivity.class);
+                        startActivityForResult(addMovieActivity, Intent.FILL_IN_DATA);
                         break;
                     case AlertDialog.BUTTON_NEGATIVE:
                         //Open the NewEditMovieActivity with no content
-                        addMovieActivity = new Intent(this,NewEditMovieActivity.class);
+                        addMovieActivity = new Intent(this, NewEditMovieActivity.class);
                         addMovieActivity.setAction(Intent.ACTION_INSERT);
-                      //  addMovieActivity.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        startActivityForResult(addMovieActivity,Intent.FILL_IN_ACTION);
+                        //  addMovieActivity.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivityForResult(addMovieActivity, Intent.FILL_IN_ACTION);
                         break;
                     default:
                         break;
                 }
                 //startActivity(addMovieActivity);
-
             }
         }
     }
@@ -197,15 +214,16 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
         // Clicking an item in the list should launch the NewEditActivity with the movie details
         setEditActivity(position);
     }
+
     @Override
     public boolean onContextItemSelected(MenuItem item) {
         // Get extra info about list item that was long-pressed
-        AdapterView.AdapterContextMenuInfo menuInfo = (AdapterView.AdapterContextMenuInfo)item.getMenuInfo();
+        AdapterView.AdapterContextMenuInfo menuInfo = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
 
-        switch(item.getItemId()){
+        switch (item.getItemId()) {
             case MENU_CONTEXT_EDIT:
                 // Editing an item
-                //Toast.makeText(MainActivity.this, "You clicked Edit!", Toast.LENGTH_SHORT).show();
+                Log.i("onContextItemSelected","Clicked editing item " + menuInfo.position);
                 setEditActivity(menuInfo.position);
                 return true;
             case MENU_CONTEXT_DELETE:
@@ -213,7 +231,7 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
                 deleteItem(menuInfo.position);
                 return true;
             case MENU_CONTEXT_SHARE:
-                //Toast.makeText(MainActivity.this, "You clicked share!", Toast.LENGTH_SHORT).show();
+                Log.i("onContextItemSelected","Clicked sharing movie item " + menuInfo.position);
                 shareMovieItem(menuInfo.position);
                 break;
             default:
@@ -221,39 +239,41 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
         }
         return false;
     }
-    private void setEditActivity(int position){
+
+    private void setEditActivity(int position) {
         //Toast.makeText(MainActivity.this, "You clicked position" + position , Toast.LENGTH_SHORT).show();
         Cursor selectedItem = (Cursor) movieTitlesListCursorAdapter.getItem(position);
         long movieId = selectedItem.getLong(selectedItem.getColumnIndex(MoviesDB.COL_ID));
         Movie selectedMovie = dbHelper.getMovieById(movieId);
-        Intent editMovieActivity = new Intent(getApplicationContext(),NewEditMovieActivity.class);
+        Intent editMovieActivity = new Intent(getApplicationContext(), NewEditMovieActivity.class);
         //editMovieActivity.addCategory(Intent.CATEGORY_HOME);
         //editMovieActivity.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        editMovieActivity.putExtra("Movie",selectedMovie);
+        editMovieActivity.putExtra("Movie", selectedMovie);
         editMovieActivity.setAction(Intent.ACTION_EDIT);
-        startActivityForResult(editMovieActivity,Intent.FILL_IN_ACTION);
+        startActivityForResult(editMovieActivity, Intent.FILL_IN_ACTION);
         //startActivity(editMovieActivity);
     }
-    private void deleteItem(int position){
+
+    private void deleteItem(int position) {
         Cursor selectedItem = (Cursor) movieTitlesListCursorAdapter.getItem(position);
         long movieId = selectedItem.getLong(selectedItem.getColumnIndex(MoviesDB.COL_ID));
-        if(dbHelper.deleteMovie(movieId)){
+        if (dbHelper.deleteMovie(movieId)) {
             Toast.makeText(this, selectedItem.getString(selectedItem.getColumnIndex(MoviesDB.COL_TITLE)) + " " + getResources().getString(R.string.toast_message_deleted_sucessfully), Toast.LENGTH_LONG).show();
         } else {
-            Toast.makeText(this,selectedItem.getString(selectedItem.getColumnIndex(MoviesDB.COL_TITLE)) + " " + getResources().getString(R.string.toast_message_movie_delete_failed) , Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, selectedItem.getString(selectedItem.getColumnIndex(MoviesDB.COL_TITLE)) + " " + getResources().getString(R.string.toast_message_movie_delete_failed), Toast.LENGTH_SHORT).show();
         }
-        movieTitlesListCursorAdapter.changeCursor(dbHelper.getAllMovieTitlesCursor());
+        //movieTitlesListCursorAdapter.changeCursor(dbHelper.getAllMovieTitlesCursor());
+        movieTitlesListCursorAdapter.changeCursor(dbHelper.getAllMovieTitlesCursorExtended(MoviesDB.COL_TITLE));
+
     }
-    public class GetItemsFromDB extends AsyncTask<Void,Integer,Cursor>{
+
+    public class GetItemsFromDB extends AsyncTask<Void, Integer, Cursor> {
 
         @Override
         protected Cursor doInBackground(Void... params) {
             Cursor movieTitlesCursor = dbHelper.getAllMovieTitlesCursor();
             publishProgress(movieTitlesCursor.getCount());
-            if(counterDummyData<2){
-              //insertDummyData();
-                counterDummyData++;
-            }
+
             return movieTitlesCursor;
         }
 
@@ -272,18 +292,32 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
             int[] textViewIds = new int[]{R.id.txtMovieListItem_movieTitle};
             movieTitlesListCursorAdapter = new SimpleCursorAdapter(
                     getApplicationContext()
-                    ,R.layout.main_movie_list_item
-                    ,returnCursor
-                    ,listOfFields
-                    ,textViewIds
-                    ,0);
+                    , R.layout.main_movie_list_item
+                    , returnCursor
+                    , listOfFields
+                    , textViewIds
+                    , 0);
 
-            progressBar.setIndeterminate(false);
-            progressBar.setVisibility(View.GONE);
+            progressBar.setVisibility(View.INVISIBLE);
 
             // Connecting the list to the adapter
             movieTitlesList.setAdapter(movieTitlesListCursorAdapter);
             movieTitlesListCursorAdapter.changeCursor(dbHelper.getAllMovieTitlesCursor());
+            Log.d("onPostExecute","Binding the adapter");
+            SimpleCursorAdapter.ViewBinder viewBinder = new SimpleCursorAdapter.ViewBinder() {
+                @Override
+                public boolean setViewValue(View view, Cursor cursor, int columnIndex) {
+                    if(view.getId() == R.id.imageView_main_moviesList) {
+                        ((ImageView)view).setImageURI(Uri.parse(cursor.getString(cursor.getColumnIndex(MoviesDB.COL_URL))));
+                        return true;
+                    }
+                    return false;
+                }
+            };
+            //SimpleCursorAdapter.ViewBinder binder = movieTitlesListCursorAdapter.getViewBinder();
+
+            //movieTitlesListCursorAdapter.setViewBinder();
+            //movieTitlesListCursorAdapter.setViewImage();
         }
 
         @Override
@@ -293,47 +327,137 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
         }
     }
 
-private void shareMovieItem(int itemPosition){
-    Cursor selectedItem = (Cursor) movieTitlesListCursorAdapter.getItem(itemPosition);
-    long movieId = selectedItem.getLong(selectedItem.getColumnIndex(MoviesDB.COL_ID));
-    Movie selectedMovie = dbHelper.getMovieById(movieId);
-    String txtTShare = selectedMovie.getTitle().trim();
-    txtTShare = getString(R.string.movie_subject) + txtTShare;
+    private void shareMovieItem(int itemPosition) {
+        Cursor selectedItem = (Cursor) movieTitlesListCursorAdapter.getItem(itemPosition);
+        long movieId = selectedItem.getLong(selectedItem.getColumnIndex(MoviesDB.COL_ID));
+        Movie selectedMovie = dbHelper.getMovieById(movieId);
+        String txtTShare = selectedMovie.getTitle().trim();
 
-    if(!(selectedMovie.getImdbId() ==null)){
-        txtTShare+="\nhttp://www.imdb.com/title/" + selectedMovie.getImdbId() +"/";
-    } else {
-        txtTShare +="\nhttp://www.imdb.com/find?q=" + selectedMovie.getTitle().trim().replace(" ","%20") + "&s=movie#tt";
-    }
-    txtTShare +="\nInformation courtesy of IMDb (http://www.imdb.com). Used with permission.";
-
-
-    Intent shareMovie = new Intent(Intent.ACTION_SEND);
-    shareMovie.setType("text/plain");
-    // Add data to the intent, the receiving app will decide what to do with it.
-    shareMovie.putExtra(Intent.EXTRA_SUBJECT,"My movie info");
-    shareMovie.putExtra(Intent.EXTRA_TEXT, txtTShare);
-    startActivity(Intent.createChooser(shareMovie,"Share movie info"));
-
-}
-
-
-        private void insertDummyData(){
-  /*
-        String loremIpsumTxt = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-
-        for (int i = 0; i < ((int)loremIpsumTxt.length()*Math.random()); i++) {
-            Movie movie = new Movie(
-                        getResources().getString(R.string.txt_movie)+String.valueOf((int)(Math.random()*1000))
-                        ,loremIpsumTxt.substring(((int)(Math.random()*loremIpsumTxt.length())/10),50)
-                    ,null
-                    ,null
-                    );
-            if(!dbHelper.insertMovie(movie)){
-                Toast.makeText(MainActivity.this, "Movie insert failed", Toast.LENGTH_LONG).show();
-            }
+        if (selectedMovie.getImdbId() != null) {
+            txtTShare += "\nhttp://www.imdb.com/title/" + selectedMovie.getImdbId() + "/";
+        } else {
+            txtTShare += "\nhttp://www.imdb.com/find?q=" + selectedMovie.getTitle().trim().replace(" ", "%20") + "&s=movie#tt";
         }
-        */
-            boolean result = dbHelper.insertMovie(new Movie("Mivtza Savta","Mivtza Savta (\"Operation Grandma\") is a satirical Israeli comedy about three very different brothers trying to get around many obstacles to bury their grandmother on her kibbutz.","tt0374053","http://ia.media-imdb.com/images/M/MV5BZjFkZDFjZjEtZDM4OC00Y2E1LTg5ZjgtZjg2NjAwYzQ0YTljXkEyXkFqcGdeQXVyMjMyMzI4MzY@._V1_SX300.jpg",0,3));
+        txtTShare += "\nInformation courtesy of IMDb (http://www.imdb.com). Used with permission.";
+
+
+        Intent shareMovie = new Intent(Intent.ACTION_SEND);
+        shareMovie.setType("text/plain");
+        // Add data to the intent, the receiving app will decide what to do with it.
+        shareMovie.putExtra(Intent.EXTRA_SUBJECT, "My movie info");
+        shareMovie.putExtra(Intent.EXTRA_TEXT, txtTShare);
+        startActivity(Intent.createChooser(shareMovie, "Share movie info"));
+
     }
-}
+
+    private void savePreferences(String value) {
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
+        SharedPreferences.Editor edit = sp.edit();
+        edit.putString("key", value);
+        edit.apply();   // using instead of commit, to perform asynchronous saving
+        // To call the sharedpreferences
+        String val = sp.getString("key", "");
+        if(val.equals("")) {
+            Log.i("savePreferences", "no value");
+        } 
+    }
+
+
+    private void insertDummyData() {
+            getFromNet fetchMovieInfo = new getFromNet();
+            fetchMovieInfo.execute();
+    }
+    public class getFromNet extends AsyncTask<Void, Integer, Void> {
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            Log.d("onPreExecute","Displaying progressBar and notification");
+            txtNotifyDummy.setVisibility(TextView.VISIBLE);
+            progressBar.setVisibility(ProgressBar.VISIBLE);
+        }
+
+        @Override
+        protected void onProgressUpdate(Integer... values) {
+            super.onProgressUpdate(values);
+            progressBar.setProgress(values[0]);
+            Log.d("onProgressUpdate","Notifying the adapter of a change");
+            movieTitlesListCursorAdapter.notifyDataSetChanged();
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+            Log.d("onPostExecute","Hiding the progressBar and notification");
+            txtNotifyDummy.setVisibility(TextView.INVISIBLE);
+            progressBar.setVisibility(ProgressBar.INVISIBLE);
+            Log.d("onPostExecute","Updating the adapter for dataSetChanged");
+            MainActivity.movieTitlesListCursorAdapter.notifyDataSetChanged();
+            //MainActivity.movieTitlesListCursorAdapter.changeCursor(dbHelper.getAllMovieTitlesCursor());
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            Movie newMovie;
+            int numDummyMovies=30;
+            int numtries = 0;
+            while(dbHelper.getAllMovieTitlesCursor().getCount()<numDummyMovies) {
+                numtries++;
+
+                String dummyID = "tt" + (int) (Math.random() * 10000000);
+                String inputLine, resultResponse = "";
+
+                try {
+                    URL omdb_url = new URL("http://www.omdbapi.com/?i=" + dummyID + "&r=json&type=movie");
+                    //Log.d("insertDummyData", "Connecting to url:" + omdb_url.toString());
+                    HttpURLConnection connection = (HttpURLConnection) omdb_url.openConnection();
+                    BufferedReader reader;
+                    reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                    while ((inputLine = reader.readLine()) != null) {
+                        resultResponse += inputLine;
+                    }
+                    JSONObject jsonResponse = new JSONObject(resultResponse);
+                    //Log.d("insertDummyData", "JSON object response: " + jsonResponse.getString("Response"));
+                    if (jsonResponse.getString("Response").equals("True")
+                            && !(jsonResponse.getString(OMDB_Web.JSON_PLOT).equals("N/A"))
+                        &&  !(jsonResponse.getString(OMDB_Web.JSON_TITLE).startsWith("Episode"))
+                            && !(jsonResponse.getString(OMDB_Web.JSON_POSTER).equals("N/A"))
+                            )
+                    {
+
+                        Log.i("insertDummyData", "Loading new movie");
+                        newMovie = new Movie(
+                                jsonResponse.getString(OMDB_Web.JSON_TITLE)
+                                , jsonResponse.getString(OMDB_Web.JSON_PLOT)
+                                , jsonResponse.getString(OMDB_Web.JSON_IMDBID)
+                                , jsonResponse.getString(OMDB_Web.JSON_POSTER)
+                                , 0
+                                , 0
+                        );
+                        if (jsonResponse.getString(OMDB_Web.JSON_RATING).equals("N/A")) {
+                            //Log.d("dummyData", "rating unavailable. Faking...");
+                            newMovie.setRating( (Math.random() * 10));
+                        } else {
+                            Log.d("insertDummyData", "update rating");
+                            newMovie.setRating(jsonResponse.getDouble(OMDB_Web.JSON_RATING));
+                        }
+
+                        publishProgress(numtries);
+                        Log.i("dummyData","Loaded " + dbHelper.getAllMovieTitlesCursor().getCount() + " movies after " + numtries + " tries");
+                        boolean movieInsertResult = dbHelper.insertMovie(newMovie);
+                    }
+                } catch (MalformedURLException ue) {
+                    Log.d("insertDummyData", "Corrupted URL." + ue.getMessage());
+                } catch (IOException ec) {
+                    Log.d("insertDummyData", "invalid URL." + ec.getMessage());
+                } catch (JSONException ej) {
+                    Log.d("insertDummyData", "invalid JSON object." + ej.getMessage());
+                } catch (Exception eg) {
+                    Log.d("insertDummyData", "unknown error: " + eg.getMessage());
+                }
+            }
+            Log.i("insertDummyData","DB now contains " + numDummyMovies + " items. No need to run anymore");
+            return null;    // Not used. we return inside the try/catch
+        }
+        }
+    }

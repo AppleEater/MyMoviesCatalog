@@ -10,9 +10,6 @@ import android.util.Log;
 
 import com.example.uaharoni.mymoviescatalog.Entities.Movie;
 
-/**
- * Created by udi on 16/05/2016.
- */
 public class MoviesDB extends SQLiteOpenHelper implements BaseColumns{
 
     private static final int DATABASE_VERSION = 1;
@@ -22,12 +19,13 @@ public class MoviesDB extends SQLiteOpenHelper implements BaseColumns{
 
     public static final String COL_ID = BaseColumns._ID;
     public static final String COL_TITLE = "title";
-    private static final String COL_PLOT = "plot";
-    private static final String COL_IMDBID = "imdb_Id";
-    private static final String COL_URL = "url";
-    private static final String COL_RATING = "rating";
+    public static final String COL_PLOT = "plot";
+    public static final String COL_IMDBID = "imdb_Id";
+    public static final String COL_URL = "url";
+    public static final String COL_RATING = "rating";
+    public static final String COL_SEEN = "seen";
     // Logcat tag
-    private static final String LOG = "moviesDbHelper";
+    public static final String LOG = "moviesDbHelper";
 
     public MoviesDB(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -37,6 +35,7 @@ public class MoviesDB extends SQLiteOpenHelper implements BaseColumns{
     public void onCreate(SQLiteDatabase db) {
         String TEXT_TYPE = " TEXT";
         String INTEGER_TYPE = " INTEGER";
+        String REAL_TYPE = " REAL";
         String DATETIME_TYPE = " DATETIME";
         String COL_NULLABLE = null;
         String PRIMARY_KEY = " PRIMARY KEY AUTOINCREMENT";
@@ -48,7 +47,8 @@ public class MoviesDB extends SQLiteOpenHelper implements BaseColumns{
                 + COL_PLOT + TEXT_TYPE + ","
                 + COL_IMDBID + TEXT_TYPE + ","
                 + COL_URL + TEXT_TYPE + ","
-                + COL_RATING + INTEGER_TYPE
+                + COL_RATING + REAL_TYPE + ","
+                + COL_SEEN + INTEGER_TYPE
                  + ")";
         db.execSQL(sqlCreateTable);
     }
@@ -114,15 +114,19 @@ public class MoviesDB extends SQLiteOpenHelper implements BaseColumns{
             int id_imdbid = singleRow.getColumnIndex(COL_IMDBID);
             int id_url = singleRow.getColumnIndex(COL_URL);
             int id_rating = singleRow.getColumnIndex(COL_RATING);
+            int id_seen = singleRow.getColumnIndex(COL_SEEN);
             singleRow.moveToFirst();
             long movieId = singleRow.getLong(id_index);
             String movieTitle = singleRow.getString(id_title);
             String moviePlot = singleRow.getString(id_plot);
             String movieImdbId = singleRow.getString(id_imdbid);
             String movieCoverUrl = singleRow.getString(id_url);
-            int movieRating = singleRow.getInt(id_rating);
+            double movieRating = singleRow.getDouble(id_rating);
+            int movieSeen = singleRow.getInt(id_seen);
             movie = new Movie(movieTitle,moviePlot,movieImdbId,movieCoverUrl,movieId,movieRating);
+            movie.setSeen(movieSeen!=0);
         }
+        singleRow.close();
         db.close();
         return movie;
     }
@@ -137,7 +141,6 @@ public class MoviesDB extends SQLiteOpenHelper implements BaseColumns{
 
             long resultId = db.insert(TBL_NAME_MOVIES, null, updatedValues);
         } catch (Exception dbException) {
-            //TODO: Implement getLocalizedMessage()
             Log.e("SQLiteDB:",dbException.getMessage());
             success = false;
         }
@@ -147,7 +150,7 @@ public class MoviesDB extends SQLiteOpenHelper implements BaseColumns{
     public boolean updateMovie(Movie movie) {
         // Obtaining the movieId
         long movieId = movie.getId();
-        boolean resultFlag = true;
+        boolean resultFlag;
         try {
             SQLiteDatabase db = this.getWritableDatabase();
             ContentValues updatedValues = extractMovie(movie);
@@ -167,6 +170,7 @@ public class MoviesDB extends SQLiteOpenHelper implements BaseColumns{
         values.put(COL_URL, movie.getCoverImageURL().replace(" ","%20"));
         values.put(COL_IMDBID,movie.getImdbId());
         values.put(COL_RATING,movie.getRating());
+        values.put(COL_SEEN,movie.getSeen());
         //values.put(COL_ID,movie.getId());  //We don't need the COL_ID, as we use this function only to insert/update movies, when we either have the id, or don't care for it.
 
 

@@ -40,11 +40,13 @@
     <string name="menu_context_option_item_share">שתף פרטי סרט</string>
     <string name="menu_share">שתף</string>
     <string name="menu_option_clear_all_fields">נקה את כל השדות</string>
-    <string name="toast_message_Loading_Image">טוען תמונה...</string>
+    <string name="toast_message_Loading_Image">טוען תמונה …</string>
     <string name="toast_message_image_not_found">לא נמצאה תמונה בקישור שצוין</string>
     <string name="dialog_header_delete_all_catalog">מחיקת קטלוג הסרטים</string>
     <string name="dialog_message_delete_catalog_warning">אזהרה! פעולה זו תמחק את כל הסרטים בקטלוג. פעולה זו אינה הפיכה.ֿ \n האם למחוק את כל הסרטים?</string>
     <string name="dialog_button_delete_complete_catalog">מחק את כל הקטלוג</string>
     <string name="dialog_button_delete_catalog_cancel">בטל</string>
     <string name="app_bar_search">חפש סרט</string>
+    <string name="menu_option_generate_dummy_data">צור רשימת סרטים ראשונית</string>
+    <string name="menu_option_share_intent_text">שתף באמצעות</string>
 </resources>
