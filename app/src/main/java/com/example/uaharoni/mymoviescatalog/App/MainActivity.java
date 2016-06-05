@@ -4,7 +4,9 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
-import android.net.Uri;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -30,12 +32,15 @@ import com.example.uaharoni.mymoviescatalog.R;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
 
 public class MainActivity extends MenuActivity implements View.OnClickListener, AdapterView.OnItemClickListener,DialogInterface.OnClickListener {
     private MoviesDB dbHelper;
@@ -93,6 +98,51 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
         progressBar = (ProgressBar) findViewById(R.id.progressBar_Main);
         txtNotifyDummy = (TextView)findViewById(R.id.txt_please_wait_dummyData);
         listItem = findViewById(R.id.list_item_layout);
+
+        // Create the SimpleCursorAdapter
+        Log.d("onPostExecute","Configuring the ListViewAdapter");
+        try {
+            String[] listOfFields = new String[]{MoviesDB.COL_TITLE,MoviesDB.COL_URL,MoviesDB.COL_RATING};
+            int[] ViewIds = new int[]{R.id.txtMovieListItem_movieTitle,R.id.imageView_main_moviesList,R.id.list_item_layout};
+            movieTitlesListCursorAdapter = new SimpleCursorAdapter(
+                    getApplicationContext()
+                    , R.layout.main_movie_list_item
+                    , dbHelper.getAllMovieTitlesCursorExtended(MoviesDB.COL_TITLE)
+                    , listOfFields
+                    , ViewIds
+                    , 0);
+        } catch (Exception e){
+            Log.e("onPostExecute", "Error creating the adapter. " + e.getMessage());
+        }
+        Log.d("onPostExecute","Binding the adapter");
+        SimpleCursorAdapter.ViewBinder viewBinder = new SimpleCursorAdapter.ViewBinder() {
+            @Override
+            public boolean setViewValue(View view, Cursor cursor, int columnIndex) {
+                if(columnIndex==cursor.getColumnIndex(MoviesDB.COL_URL)){
+                    String imgUrl = cursor.getString(columnIndex);
+                    //Log.d("onPostExecute", "Loading image url " + imgUrl);
+                    DownloadImageTask getImageBitmap = new DownloadImageTask(view);
+                    getImageBitmap.execute(imgUrl);
+                    return true;
+                }
+                if(columnIndex==cursor.getColumnIndex(MoviesDB.COL_RATING)){
+                    double movieRating = cursor.getDouble(columnIndex);
+                    if(movieRating>=2.5){
+                        view.setBackgroundColor(Color.GREEN);
+                    } else {
+                        view.setBackgroundColor(Color.RED);
+                    }
+                    return true;
+                }
+                return false;
+            }
+        };
+        Log.d("onPostExecute","Connecting the adapter to the ViewBinder");
+        movieTitlesListCursorAdapter.setViewBinder(viewBinder);
+
+        // Connecting the list to the adapter
+        movieTitlesList.setAdapter(movieTitlesListCursorAdapter);
+
     }
 
     private void initializeListeners() {
@@ -175,7 +225,7 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
             switch (whichButton) {
                 case AlertDialog.BUTTON_POSITIVE:
                     dbHelper.deleteDB();
-                    MainActivity.movieTitlesListCursorAdapter.changeCursor(dbHelper.getAllMovieTitlesCursor());
+                    MainActivity.movieTitlesListCursorAdapter.changeCursor(dbHelper.getAllMovieTitlesCursorExtended(MoviesDB.COL_TITLE));
                     Toast.makeText(MainActivity.this, getResources().getString(R.string.toast_message_catalog_deleted), Toast.LENGTH_LONG).show();
                     break;
                 case AlertDialog.BUTTON_NEGATIVE:
@@ -271,7 +321,7 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
 
         @Override
         protected Cursor doInBackground(Void... params) {
-            Cursor movieTitlesCursor = dbHelper.getAllMovieTitlesCursor();
+            Cursor movieTitlesCursor = dbHelper.getAllMovieTitlesCursorExtended(MoviesDB.COL_TITLE);
             publishProgress(movieTitlesCursor.getCount());
 
             return movieTitlesCursor;
@@ -287,37 +337,12 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
         protected void onPostExecute(Cursor returnCursor) {
             super.onPostExecute(returnCursor);
 
-            // Create the SimpleCursorAdapter
-            String[] listOfFields = new String[]{MoviesDB.COL_TITLE};
-            int[] textViewIds = new int[]{R.id.txtMovieListItem_movieTitle};
-            movieTitlesListCursorAdapter = new SimpleCursorAdapter(
-                    getApplicationContext()
-                    , R.layout.main_movie_list_item
-                    , returnCursor
-                    , listOfFields
-                    , textViewIds
-                    , 0);
 
+            Log.i("onPostExecute","Loading new cursor to the adapter");
+            //movieTitlesListCursorAdapter.changeCursor(dbHelper.getAllMovieTitlesCursor());
+            movieTitlesListCursorAdapter.changeCursor(dbHelper.getAllMovieTitlesCursorExtended(MoviesDB.COL_TITLE));
+            Log.d("onPostExecute","Hiding the progressBar");
             progressBar.setVisibility(View.INVISIBLE);
-
-            // Connecting the list to the adapter
-            movieTitlesList.setAdapter(movieTitlesListCursorAdapter);
-            movieTitlesListCursorAdapter.changeCursor(dbHelper.getAllMovieTitlesCursor());
-            Log.d("onPostExecute","Binding the adapter");
-            SimpleCursorAdapter.ViewBinder viewBinder = new SimpleCursorAdapter.ViewBinder() {
-                @Override
-                public boolean setViewValue(View view, Cursor cursor, int columnIndex) {
-                    if(view.getId() == R.id.imageView_main_moviesList) {
-                        ((ImageView)view).setImageURI(Uri.parse(cursor.getString(cursor.getColumnIndex(MoviesDB.COL_URL))));
-                        return true;
-                    }
-                    return false;
-                }
-            };
-            //SimpleCursorAdapter.ViewBinder binder = movieTitlesListCursorAdapter.getViewBinder();
-
-            //movieTitlesListCursorAdapter.setViewBinder();
-            //movieTitlesListCursorAdapter.setViewImage();
         }
 
         @Override
@@ -326,7 +351,6 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
             progressBar.setProgress(values[0]);
         }
     }
-
     private void shareMovieItem(int itemPosition) {
         Cursor selectedItem = (Cursor) movieTitlesListCursorAdapter.getItem(itemPosition);
         long movieId = selectedItem.getLong(selectedItem.getColumnIndex(MoviesDB.COL_ID));
@@ -359,7 +383,7 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
         String val = sp.getString("key", "");
         if(val.equals("")) {
             Log.i("savePreferences", "no value");
-        } 
+        }
     }
 
 
@@ -460,4 +484,36 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
             return null;    // Not used. we return inside the try/catch
         }
         }
+    public class DownloadImageTask extends AsyncTask<String, Void, Bitmap> {
+        private View view;
+
+        public DownloadImageTask(View view) {
+            this.view = view;
+        }
+
+        @Override
+        protected void onPostExecute(Bitmap bitmap) {
+            super.onPostExecute(bitmap);
+            ((ImageView) view).setImageBitmap(bitmap);
+        }
+
+        @Override
+        protected Bitmap doInBackground(String... params) {
+            Bitmap bm = null;
+            try {
+                URL aURL = new URL(params[0]);
+                URLConnection conn = aURL.openConnection();
+                conn.connect();
+                InputStream is = conn.getInputStream();
+                BufferedInputStream bis = new BufferedInputStream(is);
+                bm = BitmapFactory.decodeStream(bis);
+                bis.close();
+                is.close();
+            } catch (IOException e) {
+                Log.e("getImageBitmap", "Error getting bitmap. " +  e.getMessage());
+            }
+            return bm;
+        }
+
     }
+       }

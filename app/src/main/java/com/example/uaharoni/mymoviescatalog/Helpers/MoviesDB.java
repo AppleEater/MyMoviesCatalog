@@ -77,7 +77,7 @@ public class MoviesDB extends SQLiteOpenHelper implements BaseColumns{
         try {
             SQLiteDatabase db = this.getReadableDatabase();
             allMovieTitles = db.rawQuery(
-                    "SELECT " + COL_TITLE + "," + COL_ID  + "," + COL_RATING + " from " + TBL_NAME_MOVIES + " order by " + COL_TITLE
+                    "SELECT " + COL_TITLE + "," + COL_ID  + " from " + TBL_NAME_MOVIES + " order by " + COL_TITLE
                     , null);
         } catch (Exception dbException) {
             Log.e("SQLiteDB:",dbException.getMessage());
@@ -91,7 +91,7 @@ public class MoviesDB extends SQLiteOpenHelper implements BaseColumns{
         try {
             SQLiteDatabase db = this.getReadableDatabase();
             allMovieTitles = db.rawQuery(
-                    "SELECT " + COL_TITLE + "," + COL_ID  + "," + COL_RATING + " FROM " + TBL_NAME_MOVIES + " ORDER BY " + column
+                    "SELECT " + COL_TITLE + "," + COL_ID  + "," + COL_RATING  + "," + COL_URL + " FROM " + TBL_NAME_MOVIES + " ORDER BY " + column
                     , null);
         } catch (Exception dbException) {
             Log.e("SQLiteDB:",dbException.getMessage());
