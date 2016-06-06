@@ -393,19 +393,22 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
     }
     public class getFromNet extends AsyncTask<Void, Integer, Void> {
 
+        int numDummyMovies=30;
+
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
             Log.d("onPreExecute","Displaying progressBar and notification");
             txtNotifyDummy.setVisibility(TextView.VISIBLE);
+            progressBar.setMax(numDummyMovies);
             progressBar.setVisibility(ProgressBar.VISIBLE);
         }
 
         @Override
         protected void onProgressUpdate(Integer... values) {
             super.onProgressUpdate(values);
-            progressBar.setProgress(values[0]);
-            Log.d("onProgressUpdate","Notifying the adapter of a change");
+            progressBar.setProgress((values[0]*100/numDummyMovies));
+            Log.d("onProgress","Updated progress bar with " + values[0]*100/numDummyMovies);
             movieTitlesListCursorAdapter.notifyDataSetChanged();
         }
 
@@ -416,14 +419,14 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
             txtNotifyDummy.setVisibility(TextView.INVISIBLE);
             progressBar.setVisibility(ProgressBar.INVISIBLE);
             Log.d("onPostExecute","Updating the adapter for dataSetChanged");
-            MainActivity.movieTitlesListCursorAdapter.notifyDataSetChanged();
-            //MainActivity.movieTitlesListCursorAdapter.changeCursor(dbHelper.getAllMovieTitlesCursor());
+            //MainActivity.movieTitlesListCursorAdapter.notifyDataSetChanged();
+            MainActivity.movieTitlesListCursorAdapter.changeCursor(dbHelper.getAllMovieTitlesCursorExtended(MoviesDB.COL_TITLE));
         }
 
         @Override
         protected Void doInBackground(Void... params) {
             Movie newMovie;
-            int numDummyMovies=30;
+
             int numtries = 0;
             while(dbHelper.getAllMovieTitlesCursor().getCount()<numDummyMovies) {
                 numtries++;
@@ -433,7 +436,7 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
 
                 try {
                     URL omdb_url = new URL("http://www.omdbapi.com/?i=" + dummyID + "&r=json&type=movie");
-                    //Log.d("insertDummyData", "Connecting to url:" + omdb_url.toString());
+                    Log.d("insertDummyData", "Checking url:" + omdb_url.toString());
                     HttpURLConnection connection = (HttpURLConnection) omdb_url.openConnection();
                     BufferedReader reader;
                     reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -446,6 +449,7 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
                             && !(jsonResponse.getString(OMDB_Web.JSON_PLOT).equals("N/A"))
                         &&  !(jsonResponse.getString(OMDB_Web.JSON_TITLE).startsWith("Episode"))
                             && !(jsonResponse.getString(OMDB_Web.JSON_POSTER).equals("N/A"))
+                            &&  !(jsonResponse.getString(OMDB_Web.JSON_TITLE).startsWith("#"))
                             )
                     {
 
@@ -462,13 +466,14 @@ public class MainActivity extends MenuActivity implements View.OnClickListener, 
                             //Log.d("dummyData", "rating unavailable. Faking...");
                             newMovie.setRating( (Math.random() * 10));
                         } else {
-                            Log.d("insertDummyData", "update rating");
+                            Log.d("insertDummyData", "Updating movie " + newMovie.getTitle() + " with rating " + jsonResponse.getDouble(OMDB_Web.JSON_RATING));
                             newMovie.setRating(jsonResponse.getDouble(OMDB_Web.JSON_RATING));
                         }
 
-                        publishProgress(numtries);
-                        Log.i("dummyData","Loaded " + dbHelper.getAllMovieTitlesCursor().getCount() + " movies after " + numtries + " tries");
                         boolean movieInsertResult = dbHelper.insertMovie(newMovie);
+                        Log.i("dummyData","Loaded " + dbHelper.getAllMovieTitlesCursor().getCount() + " movies after " + numtries + " tries");
+                        publishProgress(dbHelper.getAllMovieTitlesCursor().getCount());
+
                     }
                 } catch (MalformedURLException ue) {
                     Log.d("insertDummyData", "Corrupted URL." + ue.getMessage());

@@ -13,10 +13,11 @@
         android:textSize="25sp"
         android:layout_weight="0.6"
         android:textColor="@android:color/black"
+        android:layout_marginEnd="10dp"
         />
     <ImageView
-        android:layout_width="50dp"
-        android:layout_height="50dp"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
         android:id="@+id/imageView_main_moviesList"
         android:layout_weight="0.4"
         android:contentDescription="@string/movie_url"

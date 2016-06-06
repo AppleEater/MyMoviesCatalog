@@ -35,17 +35,17 @@
 
     <ProgressBar
         style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="250dp"
-        android:layout_height="30dp"
+        android:layout_width="300dp"
+        android:layout_height="20dp"
         android:id="@+id/progressBar_Main"
         android:layout_centerVertical="true"
         android:layout_centerHorizontal="true"
-        android:secondaryProgressTintMode="screen"
-        android:secondaryProgressTint="@color/colorPrimary"
-        android:foreground="@android:color/holo_blue_light"
-        android:background="@android:color/transparent"
+        android:background="@android:color/holo_blue_light"
+        android:foregroundGravity="clip_horizontal"
+        android:foregroundTint="@android:color/holo_orange_light"
+        android:foregroundTintMode="add"
         android:saveEnabled="true"
-        android:max="100" />
+         />
 
     <TextView
         android:layout_width="wrap_content"

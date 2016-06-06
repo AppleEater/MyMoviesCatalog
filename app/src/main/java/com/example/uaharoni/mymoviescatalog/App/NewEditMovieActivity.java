@@ -272,6 +272,7 @@ public class NewEditMovieActivity extends MenuActivity implements View.OnClickLi
         @Override
         protected void onPreExecute() {
             //Toast.makeText(NewEditMovieActivity.this, "Loading Image....", Toast.LENGTH_LONG).show();
+            progressBar.setProgress(0);
             progressBar.setVisibility(ProgressBar.VISIBLE);
             super.onPreExecute();
         }
